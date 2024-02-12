@@ -1,5 +1,5 @@
 {
-    "name": "laravel/pulse",
+    "name": "reefki/pulse",
     "description": "Laravel Pulse is a real-time application performance monitoring tool and dashboard for your Laravel application.",
     "keywords": ["laravel"],
     "homepage": "https://github.com/laravel/pulse",
@@ -31,7 +31,6 @@
         "illuminate/routing": "^10.34|^11.0",
         "illuminate/support": "^10.34|^11.0",
         "illuminate/view": "^10.34|^11.0",
-        "livewire/livewire": "^3.2",
         "nesbot/carbon": "^2.67|^3.0"
     },
     "require-dev": {
@@ -62,7 +61,7 @@
         },
         "laravel": {
             "providers": [
-                "Laravel\\Pulse\\PulseServiceProvider"
+                "Laravel\\Pulse\\PulseHeadlessServiceProvider"
             ],
             "aliases": {
                 "Pulse": "Laravel\\Pulse\\Facades\\Pulse"
