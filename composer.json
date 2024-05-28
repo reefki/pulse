@@ -31,7 +31,6 @@
         "illuminate/routing": "^10.34|^11.0.8",
         "illuminate/support": "^10.34|^11.0.8",
         "illuminate/view": "^10.34|^11.0.8",
-        "livewire/livewire": "^3.4.9",
         "symfony/console": "^6.0|^7.0",
         "nesbot/carbon": "^2.67|^3.0"
     },
