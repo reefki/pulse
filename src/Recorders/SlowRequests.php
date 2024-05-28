@@ -2,7 +2,6 @@
 
 namespace Laravel\Pulse\Recorders;
 
-use Illuminate\Config\Repository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
@@ -28,7 +27,6 @@ class SlowRequests
      */
     public function __construct(
         protected Pulse $pulse,
-        protected Repository $config,
     ) {
         //
     }
@@ -50,17 +48,16 @@ class SlowRequests
      */
     public function record(Carbon $startedAt, Request $request, Response $response): void
     {
-        if (
-            ! $request->route() instanceof Route ||
-            $this->underThreshold($duration = ((int) $startedAt->diffInMilliseconds())) ||
-            ! $this->shouldSample()
-        ) {
+        if (! $request->route() instanceof Route || ! $this->shouldSample()) {
             return;
         }
 
         [$path, $via] = $this->resolveRoutePath($request);
 
-        if ($this->shouldIgnore($path)) {
+        if (
+            $this->shouldIgnore($path) ||
+            $this->underThreshold($duration = ((int) $startedAt->diffInMilliseconds()), $path)
+        ) {
             return;
         }
 

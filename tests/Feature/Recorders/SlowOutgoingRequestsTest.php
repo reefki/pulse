@@ -4,8 +4,11 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Sleep;
 use Laravel\Pulse\Facades\Pulse;
 use Laravel\Pulse\Recorders\SlowOutgoingRequests;
+
+use function Pest\Laravel\freezeTime;
 
 it('ingests slow outgoing http requests', function () {
     Config::set('pulse.recorders.'.SlowOutgoingRequests::class.'.threshold', 0);
@@ -23,7 +26,7 @@ it('ingests slow outgoing http requests', function () {
         'key' => json_encode(['GET', 'https://laravel.com']),
         'value' => 0,
     ]);
-    $aggregates = Pulse::ignore(fn () => DB::table('pulse_aggregates')->orderBy('period')->get());
+    $aggregates = Pulse::ignore(fn () => DB::table('pulse_aggregates')->orderBy('period')->orderBy('aggregate')->get());
     expect($aggregates)->toHaveCount(8);
     expect($aggregates[0])->toHaveProperties([
         'bucket' => (int) (floor(now()->timestamp / 60) * 60),
@@ -218,4 +221,50 @@ it('can sample at one', function () {
     Http::get('http://example.com');
 
     expect(Pulse::ingest())->toBe(10);
+});
+
+it('can configure threshold per url', function () {
+    freezeTime();
+    Sleep::fake(syncWithCarbon: true);
+    Config::set('pulse.recorders.'.SlowOutgoingRequests::class.'.threshold', [
+        '#one-second-threshold#' => 1_000,
+        '#two-second-threshold#' => 2_000,
+    ]);
+    $sleepSeconds = null;
+    Http::fake([
+        'one-second-threshold' => function () use (&$sleepSeconds) {
+            Sleep::for($sleepSeconds)->seconds();
+
+            return Http::response('ok');
+        },
+        'two-second-threshold' => function () use (&$sleepSeconds) {
+            Sleep::for($sleepSeconds)->seconds();
+
+            return Http::response('ok');
+        },
+    ]);
+
+    $sleepSeconds = 1;
+    Http::get('one-second-threshold')->throw();
+    Http::get('two-second-threshold')->throw();
+    Pulse::ingest();
+
+    $entries = Pulse::ignore(fn () => DB::table('pulse_entries')->get());
+    expect($entries)->toHaveCount(1);
+    expect($entries[0]->key)->toBe('["GET","one-second-threshold"]');
+    expect($entries[0]->value)->toBe(1000);
+
+    DB::table('pulse_entries')->delete();
+
+    $sleepSeconds = 2;
+    Http::get('one-second-threshold')->throw();
+    Http::get('two-second-threshold')->throw();
+    Pulse::ingest();
+
+    $entries = Pulse::ignore(fn () => DB::table('pulse_entries')->orderBy('key')->get());
+    expect($entries)->toHaveCount(2);
+    expect($entries[0]->key)->toBe('["GET","one-second-threshold"]');
+    expect($entries[0]->value)->toBe(2_000);
+    expect($entries[1]->key)->toBe('["GET","two-second-threshold"]');
+    expect($entries[1]->value)->toBe(2_000);
 });

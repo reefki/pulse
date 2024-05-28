@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
@@ -37,6 +38,7 @@ uses(TestCase::class)
     })
     ->afterEach(function () {
         Str::createUuidsNormally();
+        Sleep::fake(false);
 
         if (Pulse::wantsIngesting()) {
             throw new RuntimeException('There are pending entries.');
@@ -55,7 +57,7 @@ uses(TestCase::class)
 |
 */
 
-expect()->extend('toContainAggregateForAllPeriods', function (string|array $type, string $aggregate, string $key, int $value, ?int $count = null, ?int $timestamp = null) {
+expect()->extend('toContainAggregateForAllPeriods', function (string|array $type, string $aggregate, string $key, int|float|string $value, ?int $count = null, ?int $timestamp = null) {
     $this->toBeInstanceOf(Collection::class);
 
     $values = $this->value->each(function (stdClass $value) {
@@ -101,7 +103,7 @@ expect()->extend('toContainAggregateForAllPeriods', function (string|array $type
 function keyHash(string $string): string
 {
     return match (DB::connection()->getDriverName()) {
-        'mysql' => hex2bin(md5($string)),
+        'mariadb', 'mysql' => hex2bin(md5($string)),
         'pgsql' => Uuid::fromString(md5($string)),
         'sqlite' => md5($string),
     };

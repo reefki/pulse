@@ -2,7 +2,7 @@
     <x-pulse::card-header
         name="Slow Requests"
         title="Time: {{ number_format($time) }}ms; Run at: {{ $runAt }};"
-        details="{{ $config['threshold'] }}ms threshold, past {{ $this->periodForHumans() }}"
+        details="{{ is_array($config['threshold']) ? '' : $config['threshold'].'ms threshold, ' }}past {{ $this->periodForHumans() }}"
     >
         <x-slot:icon>
             <x-pulse::icons.arrows-left-right />
@@ -53,6 +53,11 @@
                                 @if ($slowRequest->action)
                                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400 truncate" title="{{ $slowRequest->action }}">
                                         {{ $slowRequest->action }}
+                                    </p>
+                                @endif
+                                @if (is_array($config['threshold']))
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $slowRequest->threshold }}ms threshold
                                     </p>
                                 @endif
                             </x-pulse::td>

@@ -5,6 +5,7 @@ namespace Laravel\Pulse\Livewire;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\View;
+use Laravel\Pulse\Recorders\Concerns\Thresholds;
 use Laravel\Pulse\Recorders\SlowJobs as SlowJobsRecorder;
 use Livewire\Attributes\Lazy;
 use Livewire\Attributes\Url;
@@ -15,6 +16,8 @@ use Livewire\Attributes\Url;
 #[Lazy]
 class SlowJobs extends Card
 {
+    use Thresholds;
+
     /**
      * Ordering.
      *
@@ -40,6 +43,7 @@ class SlowJobs extends Card
                 'job' => $row->key,
                 'slowest' => $row->max,
                 'count' => $row->count,
+                'threshold' => $this->threshold($row->key, SlowJobsRecorder::class),
             ]),
             $this->orderBy,
         );

@@ -3,7 +3,7 @@
 namespace Laravel\Pulse\Recorders;
 
 use Carbon\CarbonImmutable;
-use Illuminate\Config\Repository;
+use Illuminate\Contracts\Config\Repository;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Str;
 use Laravel\Pulse\Pulse;
@@ -48,11 +48,15 @@ class SlowQueries
 
         $this->pulse->lazy(function () use ($timestampMs, $duration, $sql, $location) {
             if (
-                $this->underThreshold($duration) ||
                 ! $this->shouldSample() ||
-                $this->shouldIgnore($sql)
+                $this->shouldIgnore($sql) ||
+                $this->underThreshold($duration, $sql)
             ) {
                 return;
+            }
+
+            if ($maxQueryLength = $this->config->get('pulse.recorders.'.self::class.'.max_query_length')) {
+                $sql = Str::limit($sql, $maxQueryLength);
             }
 
             $this->pulse->record(

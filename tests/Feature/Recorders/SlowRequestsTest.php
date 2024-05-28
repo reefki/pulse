@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Sleep;
 use Laravel\Pulse\Facades\Pulse;
 use Laravel\Pulse\Recorders\SlowRequests;
 use Tests\User;
@@ -97,6 +98,53 @@ it('captures requests over the threshold', function () {
     expect($aggregates[7]->value)->toEqual(4000);
 
     Pulse::ignore(fn () => expect(DB::table('pulse_values')->count())->toBe(0));
+});
+
+it('can configure threshold per route', function () {
+    Date::setTestNow('2000-01-02 03:04:05');
+    Sleep::fake(syncWithCarbon: true);
+    Config::set('pulse.recorders.'.SlowRequests::class.'.threshold', [
+        '#^/one-second-threshold#' => 1_000,
+        '#^/two-second-threshold#' => 2_000,
+    ]);
+    $sleepSeconds = null;
+    Route::get('one-second-threshold', function () use (&$sleepSeconds) {
+        Sleep::for($sleepSeconds)->seconds();
+    });
+    Route::get('two-second-threshold', function () use (&$sleepSeconds) {
+        Sleep::for($sleepSeconds)->seconds();
+    });
+    Route::get('default-threshold', fn () => 'ok');
+
+    $sleepSeconds = 1;
+    get('one-second-threshold')->assertOk();
+    get('two-second-threshold')->assertOk();
+    get('default-threshold')->assertOk();
+
+    $entries = Pulse::ignore(fn () => DB::table('pulse_entries')->get());
+    expect($entries)->toHaveCount(1);
+    expect($entries[0]->type)->toBe('slow_request');
+    expect($entries[0]->key)->toBe(json_encode(['GET', '/one-second-threshold', 'Closure']));
+    expect($entries[0]->key_hash)->toBe(keyHash(json_encode(['GET', '/one-second-threshold', 'Closure'])));
+    expect($entries[0]->value)->toBe(1000);
+
+    DB::table('pulse_entries')->delete();
+
+    $sleepSeconds = 2;
+    get('one-second-threshold')->assertOk();
+    get('two-second-threshold')->assertOk();
+    get('default-threshold')->assertOk();
+
+    $entries = Pulse::ignore(fn () => DB::table('pulse_entries')->orderBy('key')->get());
+    expect($entries)->toHaveCount(2);
+    expect($entries[0]->type)->toBe('slow_request');
+    expect($entries[0]->key)->toBe(json_encode(['GET', '/one-second-threshold', 'Closure']));
+    expect($entries[0]->key_hash)->toBe(keyHash(json_encode(['GET', '/one-second-threshold', 'Closure'])));
+    expect($entries[0]->value)->toBe(2000);
+    expect($entries[1]->type)->toBe('slow_request');
+    expect($entries[1]->key)->toBe(json_encode(['GET', '/two-second-threshold', 'Closure']));
+    expect($entries[1]->key_hash)->toBe(keyHash(json_encode(['GET', '/two-second-threshold', 'Closure'])));
+    expect($entries[1]->value)->toBe(2000);
 });
 
 it('captures slow requests per user', function () {

@@ -5,6 +5,7 @@ namespace Laravel\Pulse\Livewire;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\View;
+use Laravel\Pulse\Recorders\Concerns\Thresholds;
 use Laravel\Pulse\Recorders\SlowQueries as SlowQueriesRecorder;
 use Livewire\Attributes\Lazy;
 use Livewire\Attributes\Url;
@@ -15,6 +16,8 @@ use Livewire\Attributes\Url;
 #[Lazy]
 class SlowQueries extends Card
 {
+    use Thresholds;
+
     /**
      * Ordering.
      *
@@ -22,6 +25,18 @@ class SlowQueries extends Card
      */
     #[Url(as: 'slow-queries')]
     public string $orderBy = 'slowest';
+
+    /**
+     * Indicates that SQL highlighting should be disabled.
+     */
+    public bool $withoutHighlighting = false;
+
+    /**
+     * Indicates that SQL highlighting should be disabled.
+     *
+     * @deprecated
+     */
+    public bool $disableHighlighting = false;
 
     /**
      * Render the component.
@@ -44,6 +59,7 @@ class SlowQueries extends Card
                     'location' => $location,
                     'slowest' => $row->max,
                     'count' => $row->count,
+                    'threshold' => $this->threshold($sql, SlowQueriesRecorder::class),
                 ];
             }),
             $this->orderBy,
@@ -52,12 +68,16 @@ class SlowQueries extends Card
         return View::make('pulse::livewire.slow-queries', [
             'time' => $time,
             'runAt' => $runAt,
-            'config' => [
-                // TODO remove fallback when tagging v1
-                'highlighting' => true,
-                ...Config::get('pulse.recorders.'.SlowQueriesRecorder::class),
-            ],
+            'config' => Config::get('pulse.recorders.'.SlowQueriesRecorder::class),
             'slowQueries' => $slowQueries,
         ]);
+    }
+
+    /**
+     * Determine if the view should highlight SQL queries.
+     */
+    protected function wantsHighlighting(): bool
+    {
+        return ! ($this->withoutHighlighting || $this->disableHighlighting);
     }
 }

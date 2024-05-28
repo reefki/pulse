@@ -2,7 +2,7 @@
 
 namespace Laravel\Pulse\Support;
 
-use Illuminate\Config\Repository;
+use Illuminate\Contracts\Config\Repository;
 use Illuminate\Redis\Connections\Connection;
 use Illuminate\Support\Collection;
 use Predis\Client as Predis;
@@ -10,6 +10,7 @@ use Predis\Command\RawCommand;
 use Predis\Pipeline\Pipeline;
 use Predis\Response\ServerException as PredisServerException;
 use Redis as PhpRedis;
+use Relay\Relay;
 
 /**
  * @internal
@@ -22,7 +23,7 @@ class RedisAdapter
     public function __construct(
         protected Connection $connection,
         protected Repository $config,
-        protected Pipeline|PhpRedis|null $client = null,
+        protected Pipeline|PhpRedis|Relay|null $client = null,
     ) {
         //
     }
@@ -32,7 +33,7 @@ class RedisAdapter
      *
      * @param  array<string, string>  $dictionary
      */
-    public function xadd(string $key, array $dictionary): string|Pipeline|PhpRedis
+    public function xadd(string $key, array $dictionary): string|Pipeline|PhpRedis|Relay
     {
         return $this->handle([
             'XADD',
@@ -49,14 +50,14 @@ class RedisAdapter
      */
     public function xrange(string $key, string $start, string $end, ?int $count = null): array
     {
-        return collect($this->handle([ // @phpstan-ignore return.type argument.templateType argument.templateType
+        return collect($this->handle([ // @phpstan-ignore return.type, argument.templateType, argument.templateType
             'XRANGE',
             $this->config->get('database.redis.options.prefix').$key,
             $start,
             $end,
             ...$count !== null ? ['COUNT', "$count"] : [],
         ]))->mapWithKeys(fn ($value, $key) => [
-            $value[0] => collect($value[1]) // @phpstan-ignore argument.templateType argument.templateType
+            $value[0] => collect($value[1]) // @phpstan-ignore argument.templateType, argument.templateType
                 ->chunk(2)
                 ->map->values()
                 ->mapWithKeys(fn ($value, $key) => [$value[0] => $value[1]])
@@ -101,7 +102,7 @@ class RedisAdapter
     public function pipeline(callable $closure): array
     {
         // Create a pipeline and wrap the Redis client in an instance of this class to ensure our wrapper methods are used within the pipeline...
-        return $this->connection->pipeline(fn (Pipeline|PhpRedis $client) => $closure(new self($this->connection, $this->config, $client))); // @phpstan-ignore method.notFound
+        return $this->connection->pipeline(fn (Pipeline|PhpRedis|Relay $client) => $closure(new self($this->connection, $this->config, $client))); // @phpstan-ignore method.notFound
     }
 
     /**
@@ -113,7 +114,7 @@ class RedisAdapter
     {
         try {
             return tap($this->run($args), function ($result) use ($args) {
-                if ($result === false && $this->client() instanceof PhpRedis) {
+                if ($result === false && ($this->client() instanceof PhpRedis || $this->client() instanceof Relay)) {
                     throw RedisServerException::whileRunningCommand(implode(' ', $args), $this->client()->getLastError() ?? 'An unknown error occurred.');
                 }
             });
@@ -131,6 +132,7 @@ class RedisAdapter
     {
         return match (true) {
             $this->client() instanceof PhpRedis => $this->client()->rawCommand(...$args),
+            $this->client() instanceof Relay => $this->client()->rawCommand(...$args),
             $this->client() instanceof Predis,
             $this->client() instanceof Pipeline => $this->client()->executeCommand(RawCommand::create(...$args)),
         };
@@ -139,7 +141,7 @@ class RedisAdapter
     /**
      * Retrieve the Redis client.
      */
-    protected function client(): PhpRedis|Predis|Pipeline
+    protected function client(): PhpRedis|Predis|Pipeline|Relay
     {
         return $this->client ?? $this->connection->client();
     }

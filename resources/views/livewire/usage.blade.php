@@ -7,7 +7,7 @@
             default => 'Application Usage'
         }"
         title="Time: {{ number_format($time) }}ms; Run at: {{ $runAt }};"
-        details="{{ $this->usage === 'slow_requests' ? ($slowRequestsConfig['threshold'].'ms threshold, ') : '' }}past {{ $this->periodForHumans() }}"
+        details="{{ $this->usage === 'slow_requests' ? (is_array($slowRequestsConfig['threshold']) ? '' : $slowRequestsConfig['threshold'].'ms threshold, ') : '' }}past {{ $this->periodForHumans() }}"
     >
         <x-slot:icon>
             <x-dynamic-component :component="'pulse::icons.' . match ($this->type) {
@@ -30,6 +30,14 @@
                     class="flex-1"
                     @change="loading = true"
                 />
+            @endif
+            @if ($this->usage === 'slow_requests' && is_array($slowRequestsConfig['threshold']))
+                @php
+                    $message = 'You have per-route thresholds configured.';
+                @endphp
+                <button title="{{ $message }}" @click="alert(@js($message))">
+                    <x-pulse::icons.information-circle class="w-5 h-5 stroke-gray-400 dark:stroke-gray-600" />
+                </button>
             @endif
         </x-slot:actions>
     </x-pulse::card-header>

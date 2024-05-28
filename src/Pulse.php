@@ -105,7 +105,7 @@ class Pulse
     /**
      * Register a recorder.
      *
-     * @param  array<class-string, array<mixed>|boolean>  $recorders
+     * @param  array<class-string, array<mixed>|bool>  $recorders
      */
     public function register(array $recorders): self
     {
@@ -307,11 +307,10 @@ class Pulse
                 return $entries->count();
             }) ?? 0;
 
-            // TODO remove fallback when tagging v1
             $odds = $this->app->make('config')->get('pulse.ingest.trim.lottery') ?? $this->app->make('config')->get('pulse.ingest.trim_lottery');
 
             Lottery::odds(...$odds)
-                ->winner(fn () => $this->rescue(fn () => $ingest->trim(...)))
+                ->winner(fn () => $this->rescue($ingest->trim(...)))
                 ->choose();
 
             $this->flush();
@@ -350,7 +349,6 @@ class Pulse
             return;
         }
 
-        // TODO remove fallback when tagging v1
         $buffer = $this->app->make('config')->get('pulse.ingest.buffer') ?? 5_000;
 
         if (($this->entries->count() + $this->lazy->count()) > $buffer) {
@@ -546,6 +544,7 @@ class Pulse
             '/^[a-zA-Z0-9]{40}$/', // Session IDs...
             '/^illuminate:/', // Laravel keys...
             '/^laravel:pulse:/', // Pulse keys...
+            '/^laravel:reverb:/', // Reverb keys...
             '/^nova/', // Nova keys...
             '/^telescope:/', // Telescope keys...
         ];

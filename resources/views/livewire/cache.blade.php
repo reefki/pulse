@@ -1,6 +1,4 @@
-@php
-    use Illuminate\Support\Str;
-@endphp
+@use('Illuminate\Support\Str')
 <x-pulse::card :cols="$cols" :rows="$rows" :class="$class">
     <x-pulse::card-header
         name="Cache"
@@ -20,7 +18,7 @@
                     Str::plural('group', $count)
                 );
             @endphp
-            <button title="{{ $message }}" @click="alert('{{ str_replace("\n", '\n', $message) }}')">
+            <button title="{{ $message }}" @click="alert(@js($message))">
                 <x-pulse::icons.information-circle class="w-5 h-5 stroke-gray-400 dark:stroke-gray-600" />
             </button>
         </x-slot:actions>

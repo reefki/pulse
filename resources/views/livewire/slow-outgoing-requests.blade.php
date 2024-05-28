@@ -1,11 +1,9 @@
-@php
-    use Illuminate\Support\Str;
-@endphp
+@use('Illuminate\Support\Str')
 <x-pulse::card :cols="$cols" :rows="$rows" :class="$class">
     <x-pulse::card-header
         name="Slow Outgoing Requests"
         title="Time: {{ number_format($time) }}ms; Run at: {{ $runAt }};"
-        details="{{ $config['threshold'] }}ms threshold, past {{ $this->periodForHumans() }}"
+        details="{{ is_array($config['threshold']) ? '' : $config['threshold'].'ms threshold, ' }}past {{ $this->periodForHumans() }}"
     >
         <x-slot:icon>
             <x-pulse::icons.cloud-arrow-up />
@@ -20,7 +18,7 @@
                     Str::plural('group', $count)
                 );
             @endphp
-            <button title="{{ $message }}" @click="alert('{{ str_replace("\n", '\n', $message) }}')">
+            <button title="{{ $message }}" @click="alert(@js($message))">
                 <x-pulse::icons.information-circle class="w-5 h-5 stroke-gray-400 dark:stroke-gray-600" />
             </button>
 
@@ -71,6 +69,11 @@
                                         {{ $request->uri }}
                                     </code>
                                 </div>
+                                @if (is_array($config['threshold']))
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $request->threshold }}ms threshold
+                                    </p>
+                                @endif
                             </x-pulse::td>
                             <x-pulse::td numeric class="text-gray-700 dark:text-gray-300 font-bold">
                                 @if ($config['sample_rate'] < 1)

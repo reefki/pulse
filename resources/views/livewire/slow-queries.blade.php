@@ -2,7 +2,7 @@
 use \Doctrine\SqlFormatter\HtmlHighlighter;
 use \Doctrine\SqlFormatter\SqlFormatter;
 
-if ($config['highlighting']) {
+if ($this->wantsHighlighting()) {
     $sqlFormatter = new SqlFormatter(new HtmlHighlighter([
         HtmlHighlighter::HIGHLIGHT_RESERVED => 'class="font-semibold"',
         HtmlHighlighter::HIGHLIGHT_QUOTE => 'class="text-purple-200"',
@@ -20,7 +20,7 @@ if ($config['highlighting']) {
     <x-pulse::card-header
         name="Slow Queries"
         title="Time: {{ number_format($time) }}ms; Run at: {{ $runAt }};"
-        details="{{ $config['threshold'] }}ms threshold, past {{ $this->periodForHumans() }}"
+        details="{{ is_array($config['threshold']) ? '' : $config['threshold'].'ms threshold, ' }}past {{ $this->periodForHumans() }}"
     >
         <x-slot:icon>
             <x-pulse::icons.circle-stack />
@@ -62,10 +62,15 @@ if ($config['highlighting']) {
                             <x-pulse::td class="!p-0 truncate max-w-[1px]">
                                 <div class="relative">
                                     <div class="bg-gray-700 dark:bg-gray-800 py-4 rounded-md text-gray-100 block text-xs whitespace-nowrap overflow-x-auto [scrollbar-color:theme(colors.gray.500)_transparent] [scrollbar-width:thin]">
-                                        <code class="px-3">{!! $config['highlighting'] ? $sqlFormatter->highlight($query->sql) : $query->sql !!}</code>
+                                        <code class="px-3">{!! $this->wantsHighlighting() ? $sqlFormatter->highlight($query->sql) : $query->sql  !!}</code>
                                         @if ($query->location)
                                             <p class="px-3 mt-3 text-xs leading-none text-gray-400 dark:text-gray-500">
                                                 {{ $query->location }}
+                                            </p>
+                                        @endif
+                                        @if (is_array($config['threshold']))
+                                            <p class="px-3 mt-3 text-xs leading-none text-gray-400 dark:text-gray-500">
+                                                {{ $query->threshold }}ms threshold
                                             </p>
                                         @endif
                                     </div>

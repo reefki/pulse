@@ -85,6 +85,37 @@ it('skips jobs under the threshold', function () {
     expect(Pulse::ignore(fn () => DB::table('pulse_aggregates')->where('type', 'slow_job')->get()))->toHaveCount(0);
 });
 
+it('can configure threshold per job', function () {
+    Carbon::setTestNow('2000-01-02 03:04:05');
+    Config::set('queue.default', 'database');
+    Config::set('pulse.recorders.'.SlowJobs::class.'.threshold', [
+        '#MySlowJob#' => 1_000,
+        '#AnotherSlowJob#' => 2_000,
+    ]);
+
+    Bus::dispatchToQueue(new MySlowJob(1_000));
+    Bus::dispatchToQueue(new AnotherSlowJob(1_000));
+    Artisan::call('queue:work', ['--max-jobs' => 2, '--stop-when-empty' => true, '--sleep' => 0]);
+
+    $entries = Pulse::ignore(fn () => DB::table('pulse_entries')->where('type', 'slow_job')->get());
+    expect($entries)->toHaveCount(1);
+    expect($entries[0]->key)->toBe('MySlowJob');
+    expect($entries[0]->value)->toBe(1_000);
+
+    DB::table('pulse_entries')->delete();
+
+    Bus::dispatchToQueue(new MySlowJob(2_000));
+    Bus::dispatchToQueue(new AnotherSlowJob(2_000));
+    Artisan::call('queue:work', ['--max-jobs' => 2, '--stop-when-empty' => true, '--sleep' => 0]);
+
+    $entries = Pulse::ignore(fn () => DB::table('pulse_entries')->where('type', 'slow_job')->get());
+    expect($entries)->toHaveCount(2);
+    expect($entries[0]->key)->toBe('MySlowJob');
+    expect($entries[0]->value)->toBe(2_000);
+    expect($entries[1]->key)->toBe('AnotherSlowJob');
+    expect($entries[1]->value)->toBe(2_000);
+});
+
 it('can ignore jobs', function () {
     Config::set('queue.default', 'database');
     Config::set('pulse.recorders.'.SlowJobs::class.'.threshold', 0);
@@ -220,8 +251,18 @@ it('can sample at one', function () {
 
 class MySlowJob implements ShouldQueue
 {
+    public function __construct(public $duration = 100)
+    {
+        //
+    }
+
     public function handle()
     {
-        Carbon::setTestNow(Carbon::now()->addMilliseconds(100));
+        Carbon::setTestNow(Carbon::now()->addMilliseconds($this->duration));
     }
+}
+
+class AnotherSlowJob extends MySlowJob
+{
+    //
 }

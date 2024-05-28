@@ -1,6 +1,4 @@
-@php
-    use Illuminate\Support\Str;
-@endphp
+@use('Illuminate\Support\Str')
 <x-pulse::card :cols="$cols" :rows="$rows" :class="$class">
     <x-pulse::card-header
         name="Queues"

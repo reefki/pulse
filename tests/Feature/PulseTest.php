@@ -1,16 +1,19 @@
 <?php
 
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Facade;
 use Laravel\Pulse\Contracts\ResolvesUsers;
 use Laravel\Pulse\Contracts\Storage;
 use Laravel\Pulse\Entry;
 use Laravel\Pulse\Facades\Pulse;
 use Laravel\Pulse\Value;
+use Livewire\Livewire;
 use Livewire\LivewireManager;
 use Tests\StorageFake;
 use Tests\User;
@@ -32,6 +35,17 @@ it('can filter records', function () {
     expect($storage->stored[0]->key)->toBe('keep');
     expect($storage->stored[1])->toBeInstanceOf(Value::class);
     expect($storage->stored[1]->key)->toBe('keep');
+});
+
+it('can trim records', function () {
+    App::instance(Storage::class, $storage = new StorageFake);
+
+    Pulse::record('foo', 'delete', 0, now()->subMonth());
+    Pulse::record('foo', 'keep', 0);
+
+    Pulse::ingest();
+
+    expect($storage->stored)->toHaveCount(1);
 });
 
 it('can lazily capture entries', function () {
@@ -233,6 +247,13 @@ it('strips arguments from persistent middleware', function () {
 
     expect($persistentMiddleware)->toContain(MyTestMiddleware::class);
     expect($persistentMiddleware)->not->toContain(MyTestMiddleware::class.':admin');
+});
+
+it('handles logout events when there is no user', function () {
+    // This will throw a type error when unhandled...
+    Event::dispatch(new Logout('session', user: null));
+
+    expect(true)->toBe(true);
 });
 
 class MyTestMiddleware

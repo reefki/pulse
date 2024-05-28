@@ -3,7 +3,6 @@
 namespace Laravel\Pulse\Recorders;
 
 use Carbon\CarbonImmutable;
-use Illuminate\Config\Repository;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -39,7 +38,6 @@ class SlowJobs
      */
     public function __construct(
         protected Pulse $pulse,
-        protected Repository $config,
     ) {
         //
     }
@@ -74,9 +72,9 @@ class SlowJobs
 
         $this->pulse->lazy(function () use ($timestamp, $timestampMs, $name, $lastJobStartedProcessingAt) {
             if (
-                $this->underThreshold($duration = $timestampMs - $lastJobStartedProcessingAt) ||
                 ! $this->shouldSample() ||
-                $this->shouldIgnore($name)
+                $this->shouldIgnore($name) ||
+                $this->underThreshold($duration = $timestampMs - $lastJobStartedProcessingAt, $name)
             ) {
                 return;
             }

@@ -3,7 +3,7 @@
 namespace Laravel\Pulse\Recorders;
 
 use Carbon\CarbonImmutable;
-use Illuminate\Config\Repository;
+use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
@@ -90,7 +90,7 @@ class Exceptions
     {
         return match (true) {
             $e instanceof \Illuminate\View\ViewException => $this->resolveLocationFromViewException($e),
-            $e instanceof \Spatie\LaravelIgnition\Exceptions\ViewException => $this->formatLocation($e->getFile(), $e->getLine()), // @phpstan-ignore class.notFound class.notFound class.notFound
+            $e instanceof \Spatie\LaravelIgnition\Exceptions\ViewException => $this->formatLocation($e->getFile(), $e->getLine()), // @phpstan-ignore class.notFound, class.notFound, class.notFound
             default => $this->resolveLocationFromTrace($e)
         };
     }

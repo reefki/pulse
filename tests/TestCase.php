@@ -3,6 +3,7 @@
 namespace Tests;
 
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Foundation\AliasLoader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Orchestra\Testbench\Attributes\WithMigration;
 use Orchestra\Testbench\Concerns\WithWorkbench;
@@ -19,6 +20,8 @@ abstract class TestCase extends OrchestraTestCase
         $this->usesTestingFeature(new WithMigration('laravel', 'queue'));
 
         parent::setUp();
+
+        AliasLoader::getInstance()->setAliases([]);
     }
 
     protected function defineEnvironment($app): void

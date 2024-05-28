@@ -195,7 +195,7 @@ return [
             'sample_rate' => env('PULSE_SLOW_QUERIES_SAMPLE_RATE', 1),
             'threshold' => env('PULSE_SLOW_QUERIES_THRESHOLD', 1000),
             'location' => env('PULSE_SLOW_QUERIES_LOCATION', true),
-            'highlighting' => env('PULSE_SLOW_QUERIES_HIGHLIGHTING', true),
+            'max_query_length' => env('PULSE_SLOW_QUERIES_MAX_QUERY_LENGTH', null),
             'ignore' => [
                 '/(["`])pulse_[\w]+?\1/', // Pulse tables...
                 '/(["`])telescope_[\w]+?\1/', // Telescope tables...
@@ -207,7 +207,7 @@ return [
             'sample_rate' => env('PULSE_SLOW_REQUESTS_SAMPLE_RATE', 1),
             'threshold' => env('PULSE_SLOW_REQUESTS_THRESHOLD', 1000),
             'ignore' => [
-                '#^/pulse$#', // Pulse dashboard...
+                '#^/'.env('PULSE_PATH', 'pulse').'$#', // Pulse dashboard...
                 '#^/telescope#', // Telescope dashboard...
             ],
         ],
@@ -224,7 +224,7 @@ return [
             'enabled' => env('PULSE_USER_REQUESTS_ENABLED', true),
             'sample_rate' => env('PULSE_USER_REQUESTS_SAMPLE_RATE', 1),
             'ignore' => [
-                '#^/pulse$#', // Pulse dashboard...
+                '#^/'.env('PULSE_PATH', 'pulse').'$#', // Pulse dashboard...
                 '#^/telescope#', // Telescope dashboard...
             ],
         ],

@@ -119,6 +119,10 @@ class PulseServiceProvider extends ServiceProvider
         $this->app->booted(function () {
             $this->callAfterResolving(Dispatcher::class, function (Dispatcher $event, Application $app) {
                 $event->listen(function (Logout $event) use ($app) {
+                    if ($event->user === null) {
+                        return;
+                    }
+
                     $pulse = $app->make(Pulse::class);
 
                     $pulse->rescue(fn () => $pulse->rememberUser($event->user));
@@ -168,7 +172,7 @@ class PulseServiceProvider extends ServiceProvider
         });
 
         $this->callAfterResolving('livewire', function (LivewireManager $livewire, Application $app) {
-            $middleware = collect($app->make('config')->get('pulse.middleware')) // @phpstan-ignore argument.templateType argument.templateType
+            $middleware = collect($app->make('config')->get('pulse.middleware')) // @phpstan-ignore argument.templateType, argument.templateType
                 ->map(fn ($middleware) => is_string($middleware)
                     ? Str::before($middleware, ':')
                     : $middleware)

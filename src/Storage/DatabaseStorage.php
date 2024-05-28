@@ -5,7 +5,7 @@ namespace Laravel\Pulse\Storage;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Closure;
-use Illuminate\Config\Repository;
+use Illuminate\Contracts\Config\Repository;
 use Illuminate\Database\Connection;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Query\Builder;
@@ -69,22 +69,22 @@ class DatabaseStorage implements Storage
             }, ['count' => [], 'min' => [], 'max' => [], 'sum' => [], 'avg' => []])
         );
 
-        $countChunks = $this->preaggregateCounts(collect($counts)) // @phpstan-ignore argument.templateType argument.templateType
+        $countChunks = $this->preaggregateCounts(collect($counts)) // @phpstan-ignore argument.templateType, argument.templateType
             ->chunk($this->config->get('pulse.storage.database.chunk'));
 
-        $minimumChunks = $this->preaggregateMinimums(collect($minimums)) // @phpstan-ignore argument.templateType argument.templateType
+        $minimumChunks = $this->preaggregateMinimums(collect($minimums)) // @phpstan-ignore argument.templateType, argument.templateType
             ->chunk($this->config->get('pulse.storage.database.chunk'));
 
-        $maximumChunks = $this->preaggregateMaximums(collect($maximums)) // @phpstan-ignore argument.templateType argument.templateType
+        $maximumChunks = $this->preaggregateMaximums(collect($maximums)) // @phpstan-ignore argument.templateType, argument.templateType
             ->chunk($this->config->get('pulse.storage.database.chunk'));
 
-        $sumChunks = $this->preaggregateSums(collect($sums)) // @phpstan-ignore argument.templateType argument.templateType
+        $sumChunks = $this->preaggregateSums(collect($sums)) // @phpstan-ignore argument.templateType, argument.templateType
             ->chunk($this->config->get('pulse.storage.database.chunk'));
 
-        $averageChunks = $this->preaggregateAverages(collect($averages)) // @phpstan-ignore argument.templateType argument.templateType
+        $averageChunks = $this->preaggregateAverages(collect($averages)) // @phpstan-ignore argument.templateType, argument.templateType
             ->chunk($this->config->get('pulse.storage.database.chunk'));
 
-        $valueChunks = $this
+        $valueChunks = $this // @phpstan-ignore argument.templateType
             ->collapseValues($values)
             ->when(
                 $this->requiresManualKeyHash(),
@@ -135,10 +135,6 @@ class DatabaseStorage implements Storage
             ->where('timestamp', '<=', $now->subWeek()->getTimestamp())
             ->delete();
 
-        // TODO: Run a single delete with multiple grouped conditions?
-        // E.g. where (`period` = 60 AND `bucket` <= 1623072000) or (`period` = 360 AND `bucket` <= 1623046800)
-        // 1 query instead of 5
-
         $this->connection()
             ->table('pulse_aggregates')
             ->distinct()
@@ -182,7 +178,7 @@ class DatabaseStorage implements Storage
             ['bucket', 'period', 'type', 'aggregate', 'key_hash'],
             [
                 'value' => match ($driver = $this->connection()->getDriverName()) {
-                    'mysql' => new Expression('`value` + values(`value`)'),
+                    'mariadb', 'mysql' => new Expression('`value` + values(`value`)'),
                     'pgsql', 'sqlite' => new Expression('"pulse_aggregates"."value" + "excluded"."value"'),
                     default => throw new RuntimeException("Unsupported database driver [{$driver}]"),
                 },
@@ -202,7 +198,7 @@ class DatabaseStorage implements Storage
             ['bucket', 'period', 'type', 'aggregate', 'key_hash'],
             [
                 'value' => match ($driver = $this->connection()->getDriverName()) {
-                    'mysql' => new Expression('least(`value`, values(`value`))'),
+                    'mariadb', 'mysql' => new Expression('least(`value`, values(`value`))'),
                     'pgsql' => new Expression('least("pulse_aggregates"."value", "excluded"."value")'),
                     'sqlite' => new Expression('min("pulse_aggregates"."value", "excluded"."value")'),
                     default => throw new RuntimeException("Unsupported database driver [{$driver}]"),
@@ -223,7 +219,7 @@ class DatabaseStorage implements Storage
             ['bucket', 'period', 'type', 'aggregate', 'key_hash'],
             [
                 'value' => match ($driver = $this->connection()->getDriverName()) {
-                    'mysql' => new Expression('greatest(`value`, values(`value`))'),
+                    'mariadb', 'mysql' => new Expression('greatest(`value`, values(`value`))'),
                     'pgsql' => new Expression('greatest("pulse_aggregates"."value", "excluded"."value")'),
                     'sqlite' => new Expression('max("pulse_aggregates"."value", "excluded"."value")'),
                     default => throw new RuntimeException("Unsupported database driver [{$driver}]"),
@@ -244,7 +240,7 @@ class DatabaseStorage implements Storage
             ['bucket', 'period', 'type', 'aggregate', 'key_hash'],
             [
                 'value' => match ($driver = $this->connection()->getDriverName()) {
-                    'mysql' => new Expression('`value` + values(`value`)'),
+                    'mariadb', 'mysql' => new Expression('`value` + values(`value`)'),
                     'pgsql', 'sqlite' => new Expression('"pulse_aggregates"."value" + "excluded"."value"'),
                     default => throw new RuntimeException("Unsupported database driver [{$driver}]"),
                 },
@@ -263,7 +259,7 @@ class DatabaseStorage implements Storage
             $values,
             ['bucket', 'period', 'type', 'aggregate', 'key_hash'],
             match ($driver = $this->connection()->getDriverName()) {
-                'mysql' => [
+                'mariadb', 'mysql' => [
                     'value' => new Expression('(`value` * `count` + (values(`value`) * values(`count`))) / (`count` + values(`count`))'),
                     'count' => new Expression('`count` + values(`count`)'),
                 ],
@@ -468,7 +464,7 @@ class DatabaseStorage implements Storage
 
         $structure = collect($types)->mapWithKeys(fn ($type) => [$type => $padding]);
 
-        return $this->connection()->table('pulse_aggregates') // @phpstan-ignore return.type
+        return $this->connection()->table('pulse_aggregates')
             ->select(['bucket', 'type', 'key', 'value'])
             ->whereIn('type', $types)
             ->where('aggregate', $aggregate)
@@ -729,7 +725,7 @@ class DatabaseStorage implements Storage
         $tailStart = $windowStart;
         $tailEnd = $oldestBucket - 1;
 
-        return $this->connection()->query()
+        return $this->connection()->query() // @phpstan-ignore return.type
             ->when(is_array($types), fn ($query) => $query->addSelect('type'))
             ->selectRaw(match ($aggregate) {
                 'count' => "sum({$this->wrap('count')})",
